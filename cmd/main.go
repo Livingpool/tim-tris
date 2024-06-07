@@ -22,8 +22,8 @@ func main() {
 	}
 }
 
-// run starts a http.Server for the passed in address
-// with all requests handled by echoServer.
+// run initializes the chatServer and then
+// starts a http.Server for the passed in address.
 func run() error {
 	if len(os.Args) < 2 {
 		return errors.New("please provide an address to listen on as the first argument")
@@ -35,10 +35,9 @@ func run() error {
 	}
 	log.Printf("listening on ws://%v", l.Addr())
 
+	cs := server.NewChatServer()
 	s := &http.Server{
-		Handler: server.EchoServer{
-			Logf: log.Printf,
-		},
+		Handler:      cs,
 		ReadTimeout:  time.Second * 10,
 		WriteTimeout: time.Second * 10,
 	}
