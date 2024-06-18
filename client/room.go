@@ -8,7 +8,7 @@ import (
 )
 
 type Room struct {
-	roomId int
+	roomId string
 
 	// clients holds all clients in this room.
 	clients map[*Client]bool
