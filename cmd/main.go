@@ -1,62 +1,26 @@
 package main
 
 import (
-	"context"
-	"errors"
+	"flag"
 	"log"
-	"net"
 	"net/http"
-	"os"
-	"os/signal"
 	"time"
 
 	"github.com/Livingpool/tim-tris/server"
 )
 
+var addr = flag.String("addr", ":42069", "http server addr")
+
 func main() {
-	log.SetFlags(0)
+	flag.Parse()
 
-	err := run()
-	if err != nil {
-		log.Fatal(err)
-	}
-}
-
-// run initializes the chatServer and then
-// starts a http.Server for the passed in address.
-func run() error {
-	if len(os.Args) < 2 {
-		return errors.New("please provide an address to listen on as the first argument")
+	server := &http.Server{
+		Addr:         *addr,
+		Handler:      server.NewGameServer(),
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 30 * time.Second,
 	}
 
-	l, err := net.Listen("tcp", os.Args[1])
-	if err != nil {
-		return err
-	}
-	log.Printf("listening on ws://%v", l.Addr())
-
-	cs := server.NewChatServer()
-	s := &http.Server{
-		Handler:      cs,
-		ReadTimeout:  time.Second * 10,
-		WriteTimeout: time.Second * 10,
-	}
-	errc := make(chan error, 1)
-	go func() {
-		errc <- s.Serve(l)
-	}()
-
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, os.Interrupt)
-	select {
-	case err := <-errc:
-		log.Printf("failed to serve: %v", err)
-	case sig := <-sigs:
-		log.Printf("terminating: %v", sig)
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
-	defer cancel()
-
-	return s.Shutdown(ctx)
+	log.Println("Server listening on port", *addr)
+	log.Fatal(server.ListenAndServe())
 }
