@@ -1,0 +1,12 @@
+<!-- Rendered via room.html. The messages here are sent via the websocket. -->
+
+{{ block "chat" .}}
+<h1>Chat</h1>
+<div id="message-log"></div>
+<div id="publish-form-container">
+	<form id="publish-form">
+		<input name="message" id="message-input" type="text" />
+		<input value="Submit" type="submit" />
+	</form>
+</div>
+{{ end }}

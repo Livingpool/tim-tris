@@ -1,0 +1,20 @@
+<!-- Rendered after home.html. The messages here are sent via the websocket. -->
+
+{{ block "room" . }}
+<div id="room">
+    <div id="create-room">
+        <h3>Create New Room</h3>
+        <form id="create-room">
+            <input name="create-room" id="create-room" type="text" />
+            <input value="Enter room name" type="submit" />
+        </form>
+    </div>
+    <div id="join-room">
+        <h3>Join a Room</h3>
+        <form id="join-rom">
+            <input name="join-room" id="join-room" type="text" />
+            <input value="Enter room name" type="submit" />
+        </form>
+    </div>
+</div>
+{{ end }}
