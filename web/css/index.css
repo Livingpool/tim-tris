@@ -1,7 +1,7 @@
 body {
 	width: 100vw;
 	min-width: 320px;
-    background-color: black;
+	background-color: black;
 }
 
 #root {
@@ -21,13 +21,13 @@ body {
 }
 
 #root h1 {
-    color: white;
-    font-size: medium;
+	color: white;
+	font-size: medium;
 }
 
 #root h2 {
-    color: white;
-    font-size: medium;
+	color: white;
+	font-size: medium;
 }
 
 #home {
@@ -35,11 +35,16 @@ body {
 }
 
 #home-form-container {
-
+	
 }
 
 #home-form {
 	color: white;
+}
+
+.button:hover {
+	cursor: pointer;
+	color: yellow;
 }
 
 /* 100vh on safari does not include the bottom bar. */
