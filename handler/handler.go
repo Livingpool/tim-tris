@@ -23,7 +23,3 @@ func (h *HttpHandler) Home(w http.ResponseWriter, r *http.Request) {
 func (h *HttpHandler) Chat(w http.ResponseWriter, r *http.Request) {
 	h.renderer.Render(w, "chat", nil)
 }
-
-func (h *HttpHandler) Room(w http.ResponseWriter, r *http.Request) {
-	h.renderer.Render(w, "chat", nil)
-}

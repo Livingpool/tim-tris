@@ -14,13 +14,16 @@ var addr = flag.String("addr", ":42069", "http server addr")
 func main() {
 	flag.Parse()
 
-	server := &http.Server{
+	gameServer := server.NewGameServer()
+	go gameServer.RunServer()
+
+	s := &http.Server{
 		Addr:         *addr,
-		Handler:      server.NewGameServer(),
+		Handler:      gameServer,
 		ReadTimeout:  30 * time.Second,
 		WriteTimeout: 30 * time.Second,
 	}
 
 	log.Println("Server listening on port", *addr)
-	log.Fatal(server.ListenAndServe())
+	log.Fatal(s.ListenAndServe())
 }

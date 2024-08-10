@@ -1,4 +1,4 @@
-<!-- This is the home page. After the player enters a name, a websocket connection is established. -->
+<!-- This is the home page. After the player enters a name and create/join a room, a websocket connection is established. -->
 
 {{ block "home" . }}
 <!DOCTYPE html>
@@ -18,7 +18,7 @@
 
 <body>
 	<div id="root">
-		<div id="home">
+		<div id="home" class="home-container">
 			<h1>Welcome to Tim Tris! This is a revised version of Tetris written in Go</h1>
 			<h2>Enter your player name to play!</h2>
 			<div id="home-form-container">
@@ -26,6 +26,22 @@
 					<input name="name" id="name-input" type="text" placeholder="ex. Tim"
 						autocomplete="off" />
 					<input type="submit" value="submit" />
+				</form>
+			</div>
+		</div>
+		<div id="room" class="room-container">
+			<div id="create-room-container">
+				<h3>Create New Room</h3>
+				<form>
+					<input name="create-room" id="create-room" type="text" />
+					<input value="Enter room name" type="submit" />
+				</form>
+			</div>
+			<div id="join-room-container">
+				<h3>Join a Room</h3>
+				<form>
+					<input name="join-room" id="join-room" type="text" />
+					<input value="Enter room name" type="submit" />
 				</form>
 			</div>
 		</div>
