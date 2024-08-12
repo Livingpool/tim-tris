@@ -13,10 +13,10 @@ const UserLeftAction = "user-left"
 const RoomJoinedAction = "room-joined"
 
 type Message struct {
-	Sender  *Client `json:"sender"`
-	Target  *Room   `json:"target"`
-	Action  string  `json:"action"`
-	Message string  `json:"message"`
+	Sender  string `json:"sender"` // client name
+	Target  string `json:"target"` // room name
+	Action  string `json:"action"`
+	Message string `json:"message"`
 }
 
 func (message *Message) Encode() []byte {

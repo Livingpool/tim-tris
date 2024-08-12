@@ -2,17 +2,14 @@ package server
 
 import (
 	"fmt"
-
-	"github.com/google/uuid"
 )
 
 type Room struct {
-	RoomId uuid.UUID
-
+	Name     string
 	capacity int
 
 	//  holds all clients in this room.
-	clients map[*Client]bool
+	clients map[string]*Client
 
 	// join is a channel for  wishing to join the room.
 	join chan *Client
@@ -24,11 +21,11 @@ type Room struct {
 	broadcast chan *Message
 }
 
-func NewRoom(capacity int) *Room {
+func NewRoom(capacity int, name string) *Room {
 	return &Room{
-		RoomId:    uuid.New(),
+		Name:      name,
 		capacity:  capacity,
-		clients:   make(map[*Client]bool),
+		clients:   make(map[string]*Client),
 		join:      make(chan *Client),
 		leave:     make(chan *Client),
 		broadcast: make(chan *Message),
@@ -40,10 +37,10 @@ func (room *Room) RunRoom() {
 		select {
 		case client := <-room.join:
 			room.notifyClientJoined(client)
-			room.clients[client] = true
+			room.clients[client.Name] = client
 
 		case client := <-room.leave:
-			delete(room.clients, client)
+			delete(room.clients, client.Name)
 
 		case msg := <-room.broadcast:
 			room.broadcastToClientsInRoom(msg.Encode())
@@ -54,7 +51,7 @@ func (room *Room) RunRoom() {
 func (room *Room) notifyClientJoined(client *Client) {
 	message := Message{
 		Action:  SendMessageAction,
-		Target:  room,
+		Target:  room.Name,
 		Message: fmt.Sprintf("%s joined the room.", client.Name),
 	}
 
@@ -62,7 +59,7 @@ func (room *Room) notifyClientJoined(client *Client) {
 }
 
 func (room *Room) broadcastToClientsInRoom(message []byte) {
-	for client := range room.clients {
+	for _, client := range room.clients {
 		client.send <- message
 	}
 }

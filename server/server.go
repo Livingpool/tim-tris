@@ -4,8 +4,8 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/google/uuid"
-	"nhooyr.io/websocket"
+	"github.com/Livingpool/tim-tris/web"
+	"github.com/coder/websocket"
 )
 
 type GameServer struct {
@@ -13,11 +13,17 @@ type GameServer struct {
 	// serveMux routes the various endpoints to the appropriate handler.
 	serveMux http.ServeMux
 
-	clients    map[uuid.UUID]*Client
-	rooms      map[uuid.UUID]*Room
+	// Logf controls where logs are sent.
+	// Defaults to log.Printf.
+	Logf func(f string, v ...interface{})
+
+	clients    map[string]*Client
+	rooms      map[string]*Room
 	register   chan *Client
 	unregister chan *Client
 	broadcast  chan []byte
+
+	renderer web.TemplatesInterface
 }
 
 const (
@@ -26,16 +32,24 @@ const (
 
 func NewGameServer() *GameServer {
 	gs := &GameServer{
-		clients:    make(map[uuid.UUID]*Client),
-		rooms:      make(map[uuid.UUID]*Room),
+		Logf:       log.Printf,
+		clients:    make(map[string]*Client),
+		rooms:      make(map[string]*Room),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
 		broadcast:  make(chan []byte),
+		renderer:   web.NewTemplates(),
 	}
 
-	go gs.RunServer()
+	// Handle static files
+	var staticFiles = http.FS(web.StaticFiles)
+	fs := http.FileServer(staticFiles)
+	gs.serveMux.Handle("/static/", http.StripPrefix("/static/", fs))
 
-	gs.serveMux.HandleFunc("/ws", gs.ServeGS)
+	// Serve all other requests, including websocket
+	gs.serveMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		gs.renderer.Render(w, "home", nil)
+	})
 
 	return gs
 }
@@ -44,12 +58,12 @@ func (gs *GameServer) RunServer() {
 	for {
 		select {
 		case client := <-gs.register:
-			log.Printf("Client %s registered.", client.ClientId.String())
-			gs.clients[client.ClientId] = client
+			gs.Logf("Client %s registered.", client.Name)
+			gs.clients[client.Name] = client
 
 		case client := <-gs.unregister:
-			log.Printf("Client %s unregistered.", client.ClientId.String())
-			delete(gs.clients, client.ClientId)
+			gs.Logf("Client %s unregistered.", client.Name)
+			delete(gs.clients, client.Name)
 
 		case message := <-gs.broadcast:
 			for _, client := range gs.clients {
@@ -59,21 +73,131 @@ func (gs *GameServer) RunServer() {
 	}
 }
 
-// ServeGS handles websocket requests from clients
-func (gs *GameServer) ServeGS(w http.ResponseWriter, r *http.Request) {
-	name := r.URL.Query().Get("name")
-	if len(name) < 1 {
-		log.Println("url param 'name' is missing.")
+func (gs *GameServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	gs.serveMux.ServeHTTP(w, r)
+}
+
+type returnData struct {
+	name    string
+	players []string
+	room    string
+	error   string
+}
+
+// Handle /createRoom endpoint
+func (gs *GameServer) ServeCreateRoom(w http.ResponseWriter, r *http.Request) {
+	playerName := r.URL.Query().Get("playerName")
+	roomName := r.URL.Query().Get("roomName")
+
+	// Input formats invalid error
+	if len(playerName) < 1 || len(roomName) < 1 {
+		w.Header().Set("HX-Retarget", "room-container")
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		data := returnData{
+			error: "Player name or Room name is invalid",
+		}
+		gs.renderer.Render(w, "chat", data)
 		return
 	}
 
+	// Player name already exists error
+	if _, exists := gs.clients[playerName]; exists {
+		w.Header().Set("HX-Retarget", "room-container")
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		data := returnData{
+			error: "Player name exists. Pls choose a new one!",
+		}
+		gs.renderer.Render(w, "chat", data)
+		return
+	}
+
+	// Room name alreay exists error
+	if _, exists := gs.rooms[roomName]; exists {
+		w.Header().Set("HX-Retarget", "room-container")
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		data := returnData{
+			error: "Room name exists. Pls choose a new one!",
+		}
+		gs.renderer.Render(w, "chat", data)
+		return
+	}
+
+	data := returnData{
+		name: playerName,
+		players: []string{
+			playerName,
+		},
+		room: roomName,
+	}
+
+	gs.renderer.Render(w, "chat", data)
+}
+
+// Handle /joinRoom endpoint
+func (gs *GameServer) ServeJoinRoom(w http.ResponseWriter, r *http.Request) {
+	playerName := r.URL.Query().Get("playerName")
+	roomName := r.URL.Query().Get("roomName")
+
+	// Input formats invalid error
+	if len(playerName) < 1 || len(roomName) < 1 {
+		w.Header().Set("HX-Retarget", "room-container")
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		data := returnData{
+			error: "Player name or Room name is invalid",
+		}
+		gs.renderer.Render(w, "chat", data)
+		return
+	}
+
+	// Player name already exists error
+	if _, exists := gs.clients[playerName]; exists {
+		w.Header().Set("HX-Retarget", "room-container")
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		data := returnData{
+			error: "Player name exists. Pls choose a new one!",
+		}
+		gs.renderer.Render(w, "chat", data)
+		return
+	}
+
+	// Room name doesn't exist error
+	if _, exists := gs.rooms[roomName]; !exists {
+		w.Header().Set("HX-Retarget", "room-container")
+		w.WriteHeader(http.StatusUnprocessableEntity)
+		data := returnData{
+			error: "Room name doesn't exist.",
+		}
+		gs.renderer.Render(w, "chat", data)
+		return
+	}
+
+	var players []string
+	for player := range gs.rooms[roomName].clients {
+		players = append(players, player)
+	}
+	data := returnData{
+		name:    playerName,
+		players: players,
+		room:    roomName,
+	}
+
+	gs.renderer.Render(w, "chat", data)
+}
+
+// Handle websocket requests.
+// Client should call ServeWebsocket if ServeCreateRoom or ServeJoinRoom is successful.
+func (gs *GameServer) ServeWebsocket(w http.ResponseWriter, r *http.Request) {
 	conn, err := websocket.Accept(w, r, nil)
 	if err != nil {
-		log.Println("websocket upgrade error: ", err)
+		gs.Logf("%v\n", err)
 		return
 	}
 
-	client := NewClient(conn, name, gs)
+	playerName := r.URL.Query().Get("player")
+	roomName := r.URL.Query().Get("room")
+
+	// Register new client
+	client := NewClient(conn, playerName, gs)
 	gs.register <- client
 
 	readErr := client.ReadPump(r.Context())
@@ -81,28 +205,24 @@ func (gs *GameServer) ServeGS(w http.ResponseWriter, r *http.Request) {
 
 	select {
 	case err := <-readErr:
-		log.Println("read pump error: ", err)
+		gs.Logf("%v\n", err)
 	case err := <-writeErr:
-		log.Println("write pump error: ", err)
+		gs.Logf("%v\n", err)
 	}
+
+	// Register the new client in the correct room
+	room, exists := gs.rooms[roomName]
+	if !exists {
+		room = gs.createRoom(client, roomName)
+	}
+	client.joinRoom(room, client)
 }
 
-func (gs *GameServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	gs.serveMux.ServeHTTP(w, r)
-}
-
-func (gs *GameServer) FindRoomById(id uuid.UUID) *Room {
-	return gs.rooms[id]
-}
-
-func (gs *GameServer) FindClientById(id uuid.UUID) *Client {
-	return gs.clients[id]
-}
-
-func (gs *GameServer) CreateRoom(client *Client) *Room {
-	room := NewRoom(roomCapacity)
+func (gs *GameServer) createRoom(client *Client, roomName string) *Room {
+	room := NewRoom(roomCapacity, roomName)
+	room.clients[client.Name] = client
 	go room.RunRoom()
-	gs.rooms[room.RoomId] = room
+	gs.rooms[room.Name] = room
 
 	return room
 }
